@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تسجيل ومتابعة الطلاب</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&family=Almarai:wght@300;400;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root{
+    --ink:#1B4B43;
+    --ink-2:#0F2E2A;
+    --paper:#FAF8F3;
+    --card:#FFFFFF;
+    --gold:#C9A227;
+    --text:#2D3436;
+    --muted:#6b7573;
+    --good:#2F9E44;
+    --bad:#E03131;
+    --line:#E4E0D4;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--text);
+    font-family:'Almarai', sans-serif;
+    min-height:100vh;
+    padding-bottom:40px;
+  }
+  h1,h2,h3,.brand{font-family:'Tajawal',sans-serif;}
+  header{
+    background:linear-gradient(135deg,var(--ink) 0%,var(--ink-2) 100%);
+    color:#fff;
+    padding:22px 18px 18px;
+    border-bottom:4px solid var(--gold);
+  }
+  header .brand{
+    font-weight:900;
+    font-size:1.35rem;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  header .brand .dot{
+    width:10px;height:10px;border-radius:50%;background:var(--gold);
+    box-shadow:0 0 0 4px rgba(201,162,39,.25);
+  }
+  header p{margin:6px 0 0;opacity:.8;font-size:.85rem;}
+
+  nav{
+    display:flex;
+    gap:6px;
+    padding:14px 12px 0;
+    overflow-x:auto;
+  }
+  nav button{
+    flex:0 0 auto;
+    background:var(--card);
+    border:1px solid var(--line);
+    color:var(--muted);
+    font-family:'Tajawal',sans-serif;
+    font-weight:700;
+    font-size:.85rem;
+    padding:10px 16px;
+    border-radius:10px 10px 0 0;
+    cursor:pointer;
+  }
+  nav button.active{
+    background:var(--ink);
+    color:#fff;
+    border-color:var(--ink);
+  }
+
+  main{padding:0 12px;max-width:640px;margin:0 auto;}
+  .panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:0 12px 12px 12px;
+    padding:16px;
+    margin-top:0;
+  }
+  .hidden{display:none !important;}
+
+  /* Scanner "viewfinder" signature element */
+  .scan-frame{
+    position:relative;
+    border-radius:14px;
+    overflow:hidden;
+    background:#0F2E2A;
+    aspect-ratio:1/1;
+    max-width:340px;
+    margin:10px auto;
+  }
+  .scan-frame::before,.scan-frame::after,
+  .corner-tl,.corner-br{
+    content:'';
+    position:absolute;
+    width:34px;height:34px;
+    border:3px solid var(--gold);
+    z-index:5;
+    pointer-events:none;
+  }
+  .scan-frame::before{ top:8px; right:8px; border-left:none; border-bottom:none; }
+  .scan-frame::after{ bottom:8px; left:8px; border-right:none; border-top:none; }
+  #qr-reader{width:100%;height:100%;}
+  #qr-reader video{object-fit:cover;}
+
+  .btn{
+    font-family:'Tajawal',sans-serif;
+    font-weight:700;
+    border:none;
+    border-radius:9px;
+    padding:11px 16px;
+    cursor:pointer;
+    font-size:.9rem;
+  }
+  .btn-primary{background:var(--ink);color:#fff;}
+  .btn-gold{background:var(--gold);color:#1B1B1B;}
+  .btn-outline{background:transparent;color:var(--ink);border:1.5px solid var(--ink);}
+  .btn-danger{background:var(--bad);color:#fff;}
+  .btn-block{width:100%;}
+  .row{display:flex;gap:8px;}
+
+  label{
+    display:block;
+    font-size:.78rem;
+    color:var(--muted);
+    margin:10px 0 4px;
+    font-weight:700;
+  }
+  input,select,textarea{
+    width:100%;
+    padding:10px 12px;
+    border:1.5px solid var(--line);
+    border-radius:8px;
+    font-family:'Almarai',sans-serif;
+    font-size:.92rem;
+    background:#fff;
+  }
+  input:focus,select:focus{outline:2px solid var(--gold);border-color:var(--gold);}
+
+  .student-card{
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px;
+    margin-top:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px;
+    cursor:pointer;
+  }
+  .student-card:active{background:#faf6ea;}
+  .student-card .name{font-weight:700;font-family:'Tajawal',sans-serif;}
+  .student-card .meta{font-size:.78rem;color:var(--muted);margin-top:2px;}
+  .badge{
+    font-size:.7rem;
+    font-weight:700;
+    padding:3px 9px;
+    border-radius:20px;
+    background:#EEF6EE;
+    color:var(--good);
+    white-space:nowrap;
+  }
+
+  .qr-box{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px;
+    text-align:center;
+    margin-top:10px;
+  }
+  .qr-box img{width:150px;height:150px;}
+  .qr-box .id-code{
+    font-family:'Tajawal',sans-serif;
+    letter-spacing:2px;
+    font-weight:900;
+    margin-top:6px;
+    color:var(--ink);
+  }
+
+  .toast{
+    position:fixed;
+    bottom:20px;left:50%;
+    transform:translateX(-50%);
+    background:var(--ink);
+    color:#fff;
+    padding:12px 20px;
+    border-radius:30px;
+    font-family:'Tajawal',sans-serif;
+    font-weight:700;
+    font-size:.85rem;
+    box-shadow:0 6px 18px rgba(0,0,0,.25);
+    z-index:50;
+    opacity:0;
+    transition:opacity .25s, transform .25s;
+    pointer-events:none;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+  .toast.bad{background:var(--bad);}
+
+  table{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:10px;}
+  th,td{padding:8px 6px;text-align:right;border-bottom:1px solid var(--line);}
+  th{color:var(--muted);font-family:'Tajawal',sans-serif;font-size:.75rem;}
+
+  .empty{
+    text-align:center;
+    color:var(--muted);
+    padding:30px 10px;
+    font-size:.85rem;
+  }
+  .section-title{
+    font-weight:900;
+    font-size:1rem;
+    margin:0 0 4px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .section-title .n{
+    background:var(--gold);
+    color:#1B1B1B;
+    font-size:.7rem;
+    padding:1px 8px;
+    border-radius:20px;
+    font-family:'Almarai',sans-serif;
+  }
+  .divider{height:1px;background:var(--line);margin:14px 0;}
+  .grade-row{display:flex;gap:8px;align-items:center;margin-top:6px;}
+  .grade-row input{flex:1;}
+  .small-btn{
+    background:var(--bad);color:#fff;border:none;border-radius:6px;
+    width:30px;height:30px;font-weight:900;cursor:pointer;flex:0 0 auto;
+  }
+  #manual-fallback{margin-top:10px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="dot"></span> تسجيل ومتابعة الطلاب</div>
+  <p>منصة د. حسن علي — مسح QR للحضور، ومتابعة الدرجات بالـ ID</p>
+</header>
+
+<nav>
+  <button class="tab-btn active" data-tab="scan">📷 تسجيل حضور</button>
+  <button class="tab-btn" data-tab="students">👥 الطلاب</button>
+  <button class="tab-btn" data-tab="log">📋 سجل الحضور</button>
+</nav>
+
+<main>
+
+  <!-- SCAN TAB -->
+  <section id="tab-scan" class="panel">
+    <div class="section-title">مسح QR الطالب <span class="n">حضور اليوم: <span id="today-count">0</span></span></div>
+    <div class="scan-frame">
+      <div id="qr-reader"></div>
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <button class="btn btn-primary btn-block" id="start-scan">تشغيل الكاميرا</button>
+      <button class="btn btn-outline" id="stop-scan">إيقاف</button>
+    </div>
+
+    <div id="manual-fallback">
+      <label>لو الكاميرا مش شغالة، اكتب الـ ID يدوي</label>
+      <div class="row">
+        <input type="text" id="manual-id" placeholder="مثال: STD-1024">
+        <button class="btn btn-gold" id="manual-submit">تسجيل</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-title">آخر عملية تسجيل</div>
+    <div id="last-scan-result" class="empty">لسه معملتش أي تسجيل النهاردة</div>
+  </section>
+
+  <!-- STUDENTS TAB -->
+  <section id="tab-students" class="panel hidden">
+    <div class="section-title">إضافة طالب جديد</div>
+    <label>اسم الطالب</label>
+    <input type="text" id="new-name" placeholder="اسم الطالب بالكامل">
+    <label>الصف / المرحلة</label>
+    <input type="text" id="new-grade" placeholder="مثال: الصف الأول الإعدادي">
+    <button class="btn btn-primary btn-block" id="add-student" style="margin-top:12px;">إضافة الطالب وإنشاء QR</button>
+
+    <div class="divider"></div>
+    <div class="section-title">قائمة الطلاب <span class="n" id="student-count">0</span></div>
+    <label>ابحث بالاسم أو الـ ID</label>
+    <input type="text" id="search-student" placeholder="اكتب للبحث...">
+    <div id="students-list"></div>
+  </section>
+
+  <!-- LOG TAB -->
+  <section id="tab-log" class="panel hidden">
+    <div class="section-title">سجل الحضور</div>
+    <label>فلترة بالتاريخ</label>
+    <input type="date" id="filter-date">
+    <table id="log-table">
+      <thead><tr><th>الطالب</th><th>الـ ID</th><th>الوقت</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div id="log-empty" class="empty hidden">مفيش تسجيلات في اليوم ده</div>
+  </section>
+
+</main>
+
+<!-- STUDENT PROFILE MODAL -->
+<div id="profile-overlay" class="hidden" style="position:fixed;inset:0;background:rgba(15,46,42,.55);z-index:40;display:flex;align-items:flex-end;">
+  <div style="background:var(--paper);width:100%;max-height:88vh;overflow-y:auto;border-radius:16px 16px 0 0;padding:18px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h2 id="profile-name" style="margin:0;">اسم الطالب</h2>
+      <button id="close-profile" class="btn btn-outline" style="padding:6px 12px;">إغلاق</button>
+    </div>
+    <div class="qr-box">
+      <img id="profile-qr-img" src="" alt="QR">
+      <div class="id-code" id="profile-id"></div>
+      <div style="font-size:.75rem;color:var(--muted);margin-top:2px;" id="profile-grade-level"></div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-title">نسبة الحضور <span class="n" id="attendance-rate">-</span></div>
+    <table>
+      <thead><tr><th>التاريخ</th><th>الوقت</th><th></th></tr></thead>
+      <tbody id="profile-attendance-body"></tbody>
+    </table>
+    <div id="profile-attendance-empty" class="empty hidden">لسه مفيش تسجيلات حضور</div>
+
+    <div class="divider"></div>
+    <div class="section-title">الدرجات</div>
+    <div id="grades-list"></div>
+    <div class="grade-row">
+      <input type="text" id="grade-subject" placeholder="اسم الاختبار / الموضوع">
+      <input type="number" id="grade-value" placeholder="الدرجة" style="max-width:90px;">
+      <button class="btn btn-gold" id="add-grade">إضافة</button>
+    </div>
+
+    <div class="divider"></div>
+    <button class="btn btn-danger btn-block" id="delete-student">حذف الطالب نهائيًا</button>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+/* ---------- Storage helpers ---------- */
+const DB_KEY = 'attendance_app_db_v1';
+
+function loadDB(){
+  try{
+    const raw = localStorage.getItem(DB_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return { students: [], attendance: [] };
+}
+function saveDB(){ localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+
+let db = loadDB();
+
+/* ---------- Toast ---------- */
+function toast(msg, bad=false){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (bad ? ' bad' : '');
+  setTimeout(()=> t.className = 'toast', 2200);
+}
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('main > section').forEach(s=>s.classList.add('hidden'));
+    document.getElementById('tab-'+btn.dataset.tab).classList.remove('hidden');
+    if(btn.dataset.tab==='students') renderStudents();
+    if(btn.dataset.tab==='log') renderLog();
+    if(btn.dataset.tab==='scan') renderTodayCount();
+  });
+});
+
+/* ---------- ID generation ---------- */
+function genId(){
+  let id;
+  do{
+    id = 'STD-' + Math.floor(1000 + Math.random()*9000);
+  }while(db.students.some(s=>s.id===id));
+  return id;
+}
+
+/* ---------- QR image (via public QR image API for the printable card) ---------- */
+function qrImgUrl(id){
+  return 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(id);
+}
+
+/* ---------- Add student ---------- */
+document.getElementById('add-student').addEventListener('click', ()=>{
+  const name = document.getElementById('new-name').value.trim();
+  const grade = document.getElementById('new-grade').value.trim();
+  if(!name){ toast('اكتب اسم الطالب الأول', true); return; }
+  const id = genId();
+  db.students.push({ id, name, grade, grades: [] });
+  saveDB();
+  document.getElementById('new-name').value = '';
+  document.getElementById('new-grade').value = '';
+  toast('اتضاف الطالب: ' + name);
+  renderStudents();
+  openProfile(id);
+});
+
+/* ---------- Render students list ---------- */
+function renderStudents(){
+  const list = document.getElementById('students-list');
+  const search = document.getElementById('search-student').value.trim().toLowerCase();
+  document.getElementById('student-count').textContent = db.students.length;
+  const filtered = db.students.filter(s =>
+    !search || s.name.toLowerCase().includes(search) || s.id.toLowerCase().includes(search)
+  );
+  if(filtered.length===0){
+    list.innerHTML = '<div class="empty">مفيش طلاب مسجلين لسه</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(s=>{
+    const count = db.attendance.filter(a=>a.id===s.id).length;
+    return `<div class="student-card" data-id="${s.id}">
+      <div>
+        <div class="name">${escapeHtml(s.name)}</div>
+        <div class="meta">${escapeHtml(s.grade||'-')} · ${s.id}</div>
+      </div>
+      <div class="badge">${count} حضور</div>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.student-card').forEach(card=>{
+    card.addEventListener('click', ()=> openProfile(card.dataset.id));
+  });
+}
+document.getElementById('search-student').addEventListener('input', renderStudents);
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ---------- Attendance recording ---------- */
+function recordAttendance(id){
+  const student = db.students.find(s=>s.id===id);
+  if(!student){
+    toast('الـ ID ده مش مسجل: ' + id, true);
+    document.getElementById('last-scan-result').innerHTML =
+      `<div class="empty">❌ ID غير معروف: ${escapeHtml(id)}</div>`;
+    return;
+  }
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0,10);
+  const already = db.attendance.some(a => a.id===id && a.date===todayStr);
+  if(already){
+    toast(student.name + ' اتسجل حضور بالفعل النهاردة', true);
+  }else{
+    db.attendance.push({
+      id, date: todayStr,
+      time: now.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}),
+      ts: now.getTime() + '-' + Math.random().toString(36).slice(2,7)
+    });
+    saveDB();
+    toast('✅ اتسجل حضور: ' + student.name);
+  }
+  document.getElementById('last-scan-result').innerHTML =
+    `<div class="student-card"><div>
+      <div class="name">${escapeHtml(student.name)}</div>
+      <div class="meta">${escapeHtml(student.grade||'-')} · ${id}</div>
+    </div><div class="badge">${already ? 'مسجل بالفعل' : 'تم التسجيل'}</div></div>`;
+  renderTodayCount();
+}
+
+function renderTodayCount(){
+  const todayStr = new Date().toISOString().slice(0,10);
+  document.getElementById('today-count').textContent =
+    db.attendance.filter(a=>a.date===todayStr).length;
+}
+
+document.getElementById('manual-submit').addEventListener('click', ()=>{
+  const val = document.getElementById('manual-id').value.trim();
+  if(!val) return;
+  recordAttendance(val);
+  document.getElementById('manual-id').value = '';
+});
+document.getElementById('manual-id').addEventListener('keydown', e=>{
+  if(e.key==='Enter') document.getElementById('manual-submit').click();
+});
+
+/* ---------- QR Scanner ---------- */
+let html5QrCode = null;
+let scannerRunning = false;
+
+document.getElementById('start-scan').addEventListener('click', async ()=>{
+  if(scannerRunning) return;
+  try{
+    html5QrCode = new Html5Qrcode('qr-reader');
+    await html5QrCode.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 220, height: 220 } },
+      (decodedText)=>{
+        recordAttendance(decodedText.trim());
+      },
+      ()=>{}
+    );
+    scannerRunning = true;
+  }catch(err){
+    toast('مقدرش أشغّل الكاميرا — استخدم الإدخال اليدوي', true);
+    console.error(err);
+  }
+});
+
+document.getElementById('stop-scan').addEventListener('click', async ()=>{
+  if(html5QrCode && scannerRunning){
+    try{ await html5QrCode.stop(); html5QrCode.clear(); }catch(e){}
+    scannerRunning = false;
+  }
+});
+
+/* ---------- Log tab ---------- */
+function renderLog(){
+  const dateFilter = document.getElementById('filter-date').value;
+  const body = document.querySelector('#log-table tbody');
+  let rows = [...db.attendance].sort((a,b)=> (b.date+b.time).localeCompare(a.date+a.time));
+  if(dateFilter) rows = rows.filter(r=>r.date===dateFilter);
+  if(rows.length===0){
+    body.innerHTML = '';
+    document.getElementById('log-empty').classList.remove('hidden');
+    return;
+  }
+  document.getElementById('log-empty').classList.add('hidden');
+  body.innerHTML = rows.map(r=>{
+    const student = db.students.find(s=>s.id===r.id);
+    return `<tr><td>${escapeHtml(student ? student.name : 'غير معروف')}</td><td>${r.id}</td><td>${r.date} ${r.time}</td>
+      <td><button class="small-btn del-attendance" data-ts="${r.ts}" title="حذف">×</button></td></tr>`;
+  }).join('');
+  body.querySelectorAll('.del-attendance').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(!confirm('تمسح تسجيل الحضور ده؟')) return;
+      db.attendance = db.attendance.filter(a=>a.ts!==btn.dataset.ts);
+      saveDB();
+      renderLog();
+      renderTodayCount();
+      renderStudents();
+    });
+  });
+}
+document.getElementById('filter-date').addEventListener('change', renderLog);
+
+/* ---------- Profile modal ---------- */
+let currentProfileId = null;
+
+function openProfile(id){
+  const student = db.students.find(s=>s.id===id);
+  if(!student) return;
+  currentProfileId = id;
+  document.getElementById('profile-overlay').classList.remove('hidden');
+  document.getElementById('profile-name').textContent = student.name;
+  document.getElementById('profile-id').textContent = student.id;
+  document.getElementById('profile-grade-level').textContent = student.grade || '';
+  document.getElementById('profile-qr-img').src = qrImgUrl(student.id);
+
+  const records = db.attendance.filter(a=>a.id===id).sort((a,b)=> (b.date+b.time).localeCompare(a.date+a.time));
+  const body = document.getElementById('profile-attendance-body');
+  const empty = document.getElementById('profile-attendance-empty');
+  if(records.length===0){
+    body.innerHTML = ''; empty.classList.remove('hidden');
+  }else{
+    empty.classList.add('hidden');
+    body.innerHTML = records.map(r=>
+      `<tr><td>${r.date}</td><td>${r.time}</td>
+        <td><button class="small-btn del-profile-attendance" data-ts="${r.ts}" title="حذف">×</button></td></tr>`
+    ).join('');
+    body.querySelectorAll('.del-profile-attendance').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        if(!confirm('تمسح تسجيل الحضور ده؟')) return;
+        db.attendance = db.attendance.filter(a=>a.ts!==btn.dataset.ts);
+        saveDB();
+        openProfile(student.id);
+        renderTodayCount();
+        renderStudents();
+      });
+    });
+  }
+
+  // rough attendance rate based on distinct school days recorded across all students
+  const totalDays = new Set(db.attendance.map(a=>a.date)).size;
+  const rate = totalDays>0 ? Math.round((records.length/totalDays)*100) : 0;
+  document.getElementById('attendance-rate').textContent = totalDays>0 ? rate+'%' : '-';
+
+  renderGrades(student);
+}
+
+function renderGrades(student){
+  const list = document.getElementById('grades-list');
+  if(!student.grades || student.grades.length===0){
+    list.innerHTML = '<div class="empty">لسه مفيش درجات مسجلة</div>';
+    return;
+  }
+  list.innerHTML = student.grades.map((g,i)=>`
+    <div class="grade-row">
+      <div style="flex:1;font-weight:700;">${escapeHtml(g.subject)}</div>
+      <div style="width:60px;text-align:center;font-weight:900;color:var(--ink);">${g.value}</div>
+      <button class="small-btn" data-i="${i}">×</button>
+    </div>`).join('');
+  list.querySelectorAll('.small-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      student.grades.splice(Number(b.dataset.i),1);
+      saveDB();
+      renderGrades(student);
+      renderStudents();
+    });
+  });
+}
+
+document.getElementById('add-grade').addEventListener('click', ()=>{
+  const student = db.students.find(s=>s.id===currentProfileId);
+  if(!student) return;
+  const subject = document.getElementById('grade-subject').value.trim();
+  const value = document.getElementById('grade-value').value.trim();
+  if(!subject || value===''){ toast('اكتب اسم الاختبار والدرجة', true); return; }
+  student.grades.push({ subject, value });
+  saveDB();
+  document.getElementById('grade-subject').value = '';
+  document.getElementById('grade-value').value = '';
+  renderGrades(student);
+});
+
+document.getElementById('delete-student').addEventListener('click', ()=>{
+  if(!confirm('متأكد إنك عايز تحذف الطالب ده نهائيًا؟ هيتحذف سجل حضوره كمان.')) return;
+  db.students = db.students.filter(s=>s.id!==currentProfileId);
+  db.attendance = db.attendance.filter(a=>a.id!==currentProfileId);
+  saveDB();
+  document.getElementById('profile-overlay').classList.add('hidden');
+  renderStudents();
+  toast('اتحذف الطالب');
+});
+
+document.getElementById('close-profile').addEventListener('click', ()=>{
+  document.getElementById('profile-overlay').classList.add('hidden');
+});
+
+/* ---------- Init ---------- */
+renderTodayCount();
+renderStudents();
+</script>
+</body>
+</html>
