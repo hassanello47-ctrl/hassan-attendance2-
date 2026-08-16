@@ -48,6 +48,18 @@
     box-shadow:0 0 0 4px rgba(201,162,39,.25);
   }
   header p{margin:6px 0 0;opacity:.8;font-size:.85rem;}
+  .header-top{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .teacher-avatar{
+    width:52px;height:52px;border-radius:50%;
+    border:2px solid var(--gold);
+    background:rgba(255,255,255,.12);
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;flex:0 0 auto;cursor:pointer;
+    position:relative;
+  }
+  .teacher-avatar img{width:100%;height:100%;object-fit:cover;}
+  .teacher-avatar .placeholder{font-size:1.3rem;opacity:.7;}
+  .teacher-avatar input{display:none;}
 
   nav{
     display:flex;
@@ -241,8 +253,17 @@
 <body>
 
 <header>
-  <div class="brand"><span class="dot"></span> تسجيل ومتابعة الطلاب</div>
-  <p>منصة د. حسن علي — مسح QR للحضور، ومتابعة الدرجات بالـ ID</p>
+  <div class="header-top">
+    <div>
+      <div class="brand"><span class="dot"></span> تسجيل ومتابعة الطلاب</div>
+      <p>منصة د. حسن علي — مسح QR للحضور، ومتابعة الدرجات والمدفوعات</p>
+    </div>
+    <label class="teacher-avatar" id="teacher-avatar" title="اضغط لإضافة صورتك">
+      <span class="placeholder" id="avatar-placeholder">👤</span>
+      <img id="avatar-img" class="hidden">
+      <input type="file" id="avatar-input" accept="image/*">
+    </label>
+  </div>
 </header>
 
 <nav>
@@ -284,6 +305,13 @@
     <input type="text" id="new-name" placeholder="اسم الطالب بالكامل">
     <label>الصف / المرحلة</label>
     <input type="text" id="new-grade" placeholder="مثال: الصف الأول الإعدادي">
+    <label>نظام الدفع</label>
+    <select id="new-payment-type">
+      <option value="session">بالحصة</option>
+      <option value="month">بالشهر</option>
+    </select>
+    <label>سعر الحصة / الشهر (اختياري)</label>
+    <input type="number" id="new-payment-rate" placeholder="مثال: 100">
     <button class="btn btn-primary btn-block" id="add-student" style="margin-top:12px;">إضافة الطالب وإنشاء QR</button>
 
     <div class="divider"></div>
@@ -327,6 +355,25 @@
       <tbody id="profile-attendance-body"></tbody>
     </table>
     <div id="profile-attendance-empty" class="empty hidden">لسه مفيش تسجيلات حضور</div>
+
+    <div class="divider"></div>
+    <div class="section-title">الدفع <span class="n" id="payment-total">-</span></div>
+    <label>نظام الدفع</label>
+    <select id="profile-payment-type">
+      <option value="session">بالحصة</option>
+      <option value="month">بالشهر</option>
+    </select>
+    <label>السعر</label>
+    <input type="number" id="profile-payment-rate" placeholder="مثال: 100">
+    <table>
+      <thead><tr><th>التاريخ</th><th>المبلغ</th><th></th></tr></thead>
+      <tbody id="payments-body"></tbody>
+    </table>
+    <div id="payments-empty" class="empty hidden">لسه مفيش مدفوعات مسجلة</div>
+    <div class="grade-row">
+      <input type="number" id="payment-amount" placeholder="المبلغ المدفوع">
+      <button class="btn btn-gold" id="add-payment">تسجيل دفعة</button>
+    </div>
 
     <div class="divider"></div>
     <div class="section-title">الدرجات</div>
@@ -398,12 +445,15 @@ function qrImgUrl(id){
 document.getElementById('add-student').addEventListener('click', ()=>{
   const name = document.getElementById('new-name').value.trim();
   const grade = document.getElementById('new-grade').value.trim();
+  const paymentType = document.getElementById('new-payment-type').value;
+  const paymentRate = document.getElementById('new-payment-rate').value.trim();
   if(!name){ toast('اكتب اسم الطالب الأول', true); return; }
   const id = genId();
-  db.students.push({ id, name, grade, grades: [] });
+  db.students.push({ id, name, grade, grades: [], paymentType, paymentRate, payments: [] });
   saveDB();
   document.getElementById('new-name').value = '';
   document.getElementById('new-grade').value = '';
+  document.getElementById('new-payment-rate').value = '';
   toast('اتضاف الطالب: ' + name);
   renderStudents();
   openProfile(id);
@@ -423,10 +473,11 @@ function renderStudents(){
   }
   list.innerHTML = filtered.map(s=>{
     const count = db.attendance.filter(a=>a.id===s.id).length;
+    const payType = s.paymentType==='month' ? 'بالشهر' : 'بالحصة';
     return `<div class="student-card" data-id="${s.id}">
       <div>
         <div class="name">${escapeHtml(s.name)}</div>
-        <div class="meta">${escapeHtml(s.grade||'-')} · ${s.id}</div>
+        <div class="meta">${escapeHtml(s.grade||'-')} · ${s.id} · ${payType}</div>
       </div>
       <div class="badge">${count} حضور</div>
     </div>`;
@@ -590,7 +641,89 @@ function openProfile(id){
   document.getElementById('attendance-rate').textContent = totalDays>0 ? rate+'%' : '-';
 
   renderGrades(student);
+  renderPayments(student);
 }
+
+/* ---------- Payments ---------- */
+function renderPayments(student){
+  if(!student.payments) student.payments = [];
+  document.getElementById('profile-payment-type').value = student.paymentType || 'session';
+  document.getElementById('profile-payment-rate').value = student.paymentRate || '';
+
+  const body = document.getElementById('payments-body');
+  const empty = document.getElementById('payments-empty');
+  const records = [...student.payments].sort((a,b)=> b.date.localeCompare(a.date));
+  if(records.length===0){
+    body.innerHTML=''; empty.classList.remove('hidden');
+  }else{
+    empty.classList.add('hidden');
+    body.innerHTML = records.map(p=>`<tr><td>${p.date}</td><td>${p.amount} ج.م</td>
+      <td><button class="small-btn del-payment" data-ts="${p.ts}" title="حذف">×</button></td></tr>`).join('');
+    body.querySelectorAll('.del-payment').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        if(!confirm('تمسح الدفعة دي؟')) return;
+        student.payments = student.payments.filter(p=>p.ts!==btn.dataset.ts);
+        saveDB();
+        renderPayments(student);
+      });
+    });
+  }
+  const total = student.payments.reduce((sum,p)=> sum + Number(p.amount||0), 0);
+  document.getElementById('payment-total').textContent = total ? total + ' ج.م' : '-';
+}
+
+document.getElementById('profile-payment-type').addEventListener('change', ()=>{
+  const student = db.students.find(s=>s.id===currentProfileId);
+  if(!student) return;
+  student.paymentType = document.getElementById('profile-payment-type').value;
+  saveDB();
+});
+document.getElementById('profile-payment-rate').addEventListener('change', ()=>{
+  const student = db.students.find(s=>s.id===currentProfileId);
+  if(!student) return;
+  student.paymentRate = document.getElementById('profile-payment-rate').value.trim();
+  saveDB();
+});
+
+document.getElementById('add-payment').addEventListener('click', ()=>{
+  const student = db.students.find(s=>s.id===currentProfileId);
+  if(!student) return;
+  const amountInput = document.getElementById('payment-amount');
+  const amount = amountInput.value.trim();
+  if(!amount || Number(amount)<=0){ toast('اكتب مبلغ صحيح', true); return; }
+  if(!student.payments) student.payments = [];
+  student.payments.push({
+    amount, date: new Date().toISOString().slice(0,10),
+    ts: Date.now() + '-' + Math.random().toString(36).slice(2,7)
+  });
+  saveDB();
+  amountInput.value = '';
+  renderPayments(student);
+  toast('اتسجلت دفعة ' + amount + ' ج.م');
+});
+
+/* ---------- Teacher avatar (own photo shown as header logo) ---------- */
+const AVATAR_KEY = 'teacher_avatar_v1';
+function loadAvatar(){
+  const saved = localStorage.getItem(AVATAR_KEY);
+  if(saved){
+    document.getElementById('avatar-img').src = saved;
+    document.getElementById('avatar-img').classList.remove('hidden');
+    document.getElementById('avatar-placeholder').classList.add('hidden');
+  }
+}
+document.getElementById('avatar-input').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    localStorage.setItem(AVATAR_KEY, reader.result);
+    loadAvatar();
+    toast('اتحفظت صورتك');
+  };
+  reader.readAsDataURL(file);
+});
+loadAvatar();
 
 function renderGrades(student){
   const list = document.getElementById('grades-list');
